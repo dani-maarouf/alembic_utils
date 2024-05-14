@@ -1,3 +1,4 @@
+import os
 from parse import parse
 from sqlalchemy import text as sql_text
 
@@ -5,6 +6,9 @@ from alembic_utils.exceptions import SQLParseFailure
 from alembic_utils.on_entity_mixin import OnEntityMixin
 from alembic_utils.replaceable_entity import ReplaceableEntity
 from alembic_utils.statement import coerce_to_quoted
+
+
+NEVER_INCLUDE_SCHEMA = os.environ.get("NEVER_INCLUDE_SCHEMA", "false").lower() in {"true", "1"}
 
 
 class PGPolicy(OnEntityMixin, ReplaceableEntity):
@@ -34,6 +38,11 @@ class PGPolicy(OnEntityMixin, ReplaceableEntity):
                 schema = "public"
             else:
                 schema = on_entity.split(".")[0]
+            
+            if NEVER_INCLUDE_SCHEMA:
+                schema = "public"
+                if "." in on_entity:
+                    on_entity = on_entity.split(".")[1]
 
             return cls(  # type: ignore
                 schema=schema,
@@ -61,6 +70,12 @@ class PGPolicy(OnEntityMixin, ReplaceableEntity):
     @classmethod
     def from_database(cls, connection, schema):
         """Get a list of all policies defined in the db"""
+        where_clause=f"""        where
+            schemaname = '{schema}'
+"""
+        if schema == "%":
+            where_clause = ""
+
         sql = sql_text(
             f"""
         select
@@ -74,8 +89,7 @@ class PGPolicy(OnEntityMixin, ReplaceableEntity):
             with_check
         from
             pg_policies
-        where
-            schemaname = '{schema}'
+        {where_clause}
         """
         )
         rows = connection.execute(sql).fetchall()
@@ -101,6 +115,9 @@ class PGPolicy(OnEntityMixin, ReplaceableEntity):
         db_policies = []
         for schema, table, policy_name, permissive, roles, cmd, qual, with_check in rows:
             definition = get_definition(permissive, roles, cmd, qual, with_check)
+
+            if NEVER_INCLUDE_SCHEMA:
+                schema = "public"
 
             schema = coerce_to_quoted(schema)
             table = coerce_to_quoted(table)
