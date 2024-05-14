@@ -1,4 +1,5 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
+import os
 from typing import List
 
 from parse import parse
@@ -12,6 +13,9 @@ from alembic_utils.statement import (
     normalize_whitespace,
     strip_terminating_semicolon,
 )
+
+
+NEVER_INCLUDE_SCHEMA = os.environ.get("NEVER_INCLUDE_SCHEMA", "false").lower() in {"true", "1"}
 
 
 class PGFunction(ReplaceableEntity):
@@ -49,6 +53,8 @@ class PGFunction(ReplaceableEntity):
                 # remove possible quotes from signature
                 raw_signature = result["signature"]
                 schema = result.named.get("schema") or "public"
+                if NEVER_INCLUDE_SCHEMA:
+                    schema = "public"
                 signature = (
                     "".join(raw_signature.split('"', 2))
                     if raw_signature.startswith('"')
@@ -126,6 +132,10 @@ class PGFunction(ReplaceableEntity):
         pg_version_str = sess.execute(sql_text("show server_version_num")).fetchone()[0]
         pg_version = int(pg_version_str)
 
+        schema_where_clause = f"and n.nspname = '{schema}'"
+        if schema == "%":
+            schema_where_clause = ""
+
         sql = sql_text(
             f"""
         with extension_functions as (
@@ -160,12 +170,12 @@ class PGFunction(ReplaceableEntity):
             n.nspname not in ('pg_catalog', 'information_schema')
             -- Filter out functions from extensions
             and ef.extension_function_oid is null
-            and n.nspname = :schema
+            {schema_where_clause}
         """
             + (PG_GTE_11 if pg_version >= 110000 else PG_LT_11)
         )
 
-        rows = sess.execute(sql, {"schema": schema}).fetchall()
+        rows = sess.execute(sql).fetchall()
         db_functions = [cls.from_sql(x[3]) for x in rows]
 
         for func in db_functions:

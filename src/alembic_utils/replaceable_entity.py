@@ -1,5 +1,6 @@
 # pylint: disable=unused-argument,invalid-name,line-too-long
 import logging
+import os
 from itertools import zip_longest
 from pathlib import Path
 from typing import (
@@ -42,10 +43,15 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T", bound="ReplaceableEntity")
 
 
+NEVER_INCLUDE_SCHEMA = os.environ.get("NEVER_INCLUDE_SCHEMA", "false").lower() in {"true", "1"}
+
+
 class ReplaceableEntity:
     """A SQL Entity that can be replaced"""
 
     def __init__(self, signature: str, definition: str, schema: str = "public"):
+        if NEVER_INCLUDE_SCHEMA:
+            schema = "public"
         self.schema: str = coerce_to_unquoted(normalize_whitespace(schema))
         self.signature: str = coerce_to_unquoted(normalize_whitespace(signature))
         self.definition: str = escape_colon_for_sql(strip_terminating_semicolon(definition))
@@ -99,6 +105,10 @@ class ReplaceableEntity:
     def get_database_definition(
         self: T, sess: Session, dependencies: Optional[List["ReplaceableEntity"]] = None
     ) -> T:  # $Optional[T]:
+        in_schema = self.schema
+        if NEVER_INCLUDE_SCHEMA:
+            in_schema = "%"
+
         """Creates the entity in the database, retrieves its 'rendered' then rolls it back"""
         with simulate_entity(sess, self, dependencies) as sess:
             # Drop self
@@ -106,13 +116,13 @@ class ReplaceableEntity:
 
             # collect all remaining entities
             db_entities: List[T] = sorted(
-                self.from_database(sess, schema=self.schema), key=lambda x: x.identity
+                self.from_database(sess, schema=in_schema), key=lambda x: x.identity
             )
 
         with simulate_entity(sess, self, dependencies) as sess:
             # collect all remaining entities
             all_w_self: List[T] = sorted(
-                self.from_database(sess, schema=self.schema), key=lambda x: x.identity
+                self.from_database(sess, schema=in_schema), key=lambda x: x.identity
             )
 
         # Find "self" by diffing the before and after
@@ -161,7 +171,11 @@ class ReplaceableEntity:
     ) -> Optional[ReversibleOp]:
         """Get the migration operation required for autogenerate"""
         # All entities in the database for self's schema
-        entities_in_database: List[T] = self.from_database(sess, schema=self.schema)
+        schema = self.schema
+        if NEVER_INCLUDE_SCHEMA:
+            schema = "%"
+
+        entities_in_database: List[T] = self.from_database(sess, schema=schema)
 
         db_def = self.get_database_definition(sess, dependencies=dependencies)
 
