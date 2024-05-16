@@ -1,34 +1,31 @@
 # Alembic Utils
 
-<p>
-    <a href="https://github.com/olirice/alembic_utils/actions">
-        <img src="https://github.com/olirice/alembic_utils/workflows/Tests/badge.svg" alt="Test Status" height="18">
-    </a>
-    <a href="https://github.com/olirice/alembic_utils/actions">
-        <img src="https://github.com/olirice/alembic_utils/workflows/pre-commit%20hooks/badge.svg" alt="Pre-commit Status" height="18">
-    </a>
-    <a href="https://codecov.io/gh/olirice/alembic_utils"><img src="https://codecov.io/gh/olirice/alembic_utils/branch/master/graph/badge.svg" height="18"></a>
-</p>
-<p>
-    <a href="https://github.com/olirice/alembic_utils/blob/master/LICENSE"><img src="https://img.shields.io/pypi/l/markdown-subtemplate.svg" alt="License" height="18"></a>
-    <a href="https://badge.fury.io/py/alembic_utils"><img src="https://badge.fury.io/py/alembic_utils.svg" alt="PyPI version" height="18"></a>
-    <a href="https://github.com/psf/black">
-        <img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Codestyle Black" height="18">
-    </a>
-    <a href="https://pypi.org/project/alembic_utils/"><img src="https://img.shields.io/pypi/dm/alembic_utils.svg" alt="Download count" height="18"></a>
-</p>
-<p>
-    <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.6+-blue.svg" alt="Python version" height="18"></a>
-    <a href=""><img src="https://img.shields.io/badge/postgresql-11+-blue.svg" alt="PostgreSQL version" height="18"></a>
-</p>
+Fork of [alembic_utils](https://github.com/olirice/alembic_utils) with the following changes:
+
+- Support ignoring schema (if e.g. `SET search_path TO x` is being used). This is configured by setting env `NEVER_INCLUDE_SCHEMA` to `true`
+- Support rendering function definitions as multiline strings. This is configured by setting env `RENDER_DEF_MULTILINE` to `true`
+- Support procedures. Procedures use `PgFunction`, but with `is_proc=True` passed to the constructor
+- Function SQL is parsed and manipulated using a `libpg_query` [wrapper](https://github.com/dani-maarouf/psqlparse2), 
+which should be more robust than the existing pattern matching parser
+
+### Caveats
+
+- Original function formatting and comments are lost when rendered in the migration script
+- SQL constructs with equivalent representations may be transformed. e.g. `STRICT` may be changed to `RETURNS NULL ON NULL INPUT`
+- Functions/procedures are the only entity types that use the new parser. Other entity types are still parsed using pattern matching
+
+### TODO
+
+- [ ] Use new parser for all entity types, not just functions
+
+### Acknowledgements
+
+- [Oliver Rice](https://github.com/olirice), author of the original `alembic_utils`
+- [Diego Fulguiera](https://github.com/diegoful-fr) for adding initial support for ignoring schema prefix, and for procedures
 
 ---
 
-**Documentation**: <a href="https://olirice.github.io/alembic_utils" target="_blank">https://olirice.github.io/alembic_utils</a>
-
-**Source Code**: <a href="https://github.com/olirice/alembic_utils" target="_blank">https://github.com/olirice/alembic_utils</a>
-
----
+https://github.com/olirice/alembic_utils
 
 **Autogenerate Support for PostgreSQL Functions, Views, Materialized View, Triggers, and Policies**
 
