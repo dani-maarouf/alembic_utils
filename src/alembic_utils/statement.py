@@ -2,7 +2,7 @@ import logging
 from uuid import uuid4
 
 from parse import parse
-from psqlparse2.pb.pg_query_pb2 import ParseResult
+from psqlparse2.pb.pg_query_pb2 import ParseResult, FunctionParameterMode
 from psqlparse2 import query_to_pb, pb_to_query
 import pg_query
 
@@ -177,6 +177,8 @@ def render_drop_statement(func_sql: str, is_proc: bool) -> str:
 
     for i in range(len(create_func_stmt.parameters)):
         p = create_func_stmt.parameters[i]
+        if p.function_parameter.mode == FunctionParameterMode.FUNC_PARAM_TABLE:
+            continue
         p.function_parameter.ClearField("defexpr")
         obj.objfuncargs.append(p)
 
