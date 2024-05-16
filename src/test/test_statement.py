@@ -91,6 +91,28 @@ END
         expected_drop_stmt="DROP FUNCTION select_int(n int)",
         allow_error=False,
     ),
+    FuncTestCase(
+        name="returns table",
+        sql="""
+CREATE FUNCTION "get_leafs"(start_node_id uuid) returns TABLE (id uuid)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT node_id
+    FROM device_tree
+    WHERE parent_id = start_node_id;
+END;
+$$
+""",
+        expected_signature="get_leafs(start_node_id uuid)",
+        expected_returns="returns TABLE (id uuid)",
+        expected_schema="public",
+        expected_body="LANGUAGE plpgsql AS $$ BEGIN RETURN QUERY SELECT node_id FROM device_tree WHERE parent_id = start_node_id; END; $$",
+        expected_is_proc=False,
+        expected_drop_stmt="DROP FUNCTION get_leafs(start_node_id uuid)",
+        allow_error=False,
+    ),
 ]
 
 
